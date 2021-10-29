@@ -2,4 +2,5 @@
 /output
 /*.c
 /*.pyd
+/*.so
 /.idea
