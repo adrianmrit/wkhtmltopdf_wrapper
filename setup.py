@@ -10,6 +10,8 @@ _IS_WINDOWS = os.name == "nt"
 _WKHTMLTOPDF_EXE = "wkhtmltopdf"
 """Executable for wkhtmltopdf. Used to get the right path of the dependencies"""
 
+__all__ = []
+
 
 def _get_wkhtmltopdf_path():
     """
@@ -65,4 +67,11 @@ def _get_extension(name: str, sources: list):
 
 _ext_modules = [_get_extension("wkhtmltopdf_wrapper", ["wkhtmltopdf_wrapper.pyx"])]
 
-setup(name="wkhtmltopdf_wrapper", ext_modules=cythonize(_ext_modules))
+with open("requirements.txt") as f:
+    _requirements = f.read().splitlines()
+
+setup(
+    name="wkhtmltopdf_wrapper",
+    ext_modules=cythonize(_ext_modules),
+    install_requires=_requirements,
+)
