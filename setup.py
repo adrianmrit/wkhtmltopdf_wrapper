@@ -72,6 +72,11 @@ with open("requirements.txt") as f:
 
 setup(
     name="wkhtmltopdf_wrapper",
+    description="Python wrapper of the wkhtmltopdf shared library",
+    url="https://github.com/adrianmrit/wkhtmltopdf_wrapper",
+    author="Adrian Martinez",
+    author_email="adrianmrit@gmail.com",
+    license="MIT",
     ext_modules=cythonize(_ext_modules),
     install_requires=_requirements,
 )
