@@ -17,7 +17,7 @@ def _get_wkhtmltopdf_path():
 
     :return: Parent path of the bin folder that contains the wkhtmltopdf executable
     """
-    command = 'where' if _IS_WINDOWS else 'which'
+    command = "where" if _IS_WINDOWS else "which"
 
     try:
         result = subprocess.check_output([command, _WKHTMLTOPDF_EXE])
@@ -54,14 +54,15 @@ def _get_extension(name: str, sources: list):
     library_dir_names = ["lib"]
     include_dir_names = ["bin", "include", "include/wkhtmltox"]
 
-    kwargs["library_dirs"] = [os.path.join(wkhtmltopdf_root_path, dir_name) for dir_name in library_dir_names]
-    kwargs["include_dirs"] = [os.path.join(wkhtmltopdf_root_path, dir_name) for dir_name in include_dir_names]
-
+    kwargs["library_dirs"] = [
+        os.path.join(wkhtmltopdf_root_path, dir_name) for dir_name in library_dir_names
+    ]
+    kwargs["include_dirs"] = [
+        os.path.join(wkhtmltopdf_root_path, dir_name) for dir_name in include_dir_names
+    ]
     return Extension(name, **kwargs)
 
 
-_ext_modules = [
-    _get_extension("wkhtmltopdf_wrapper", ["wkhtmltopdf_wrapper.pyx"])
-]
+_ext_modules = [_get_extension("wkhtmltopdf_wrapper", ["wkhtmltopdf_wrapper.pyx"])]
 
 setup(name="wkhtmltopdf_wrapper", ext_modules=cythonize(_ext_modules))
