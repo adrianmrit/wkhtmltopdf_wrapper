@@ -31,8 +31,10 @@ class TestToPDF(TestCase):
         thread2 = threading.Thread(target=func2)
         thread1.start()
         thread2.start()
-        thread1.join(3)
-        thread2.join(3)
+        # No timeout as it fails in some systems
+        # Like when running in wsl with `xvfb-run python -m unittest test`
+        thread1.join()
+        thread2.join()
         self.assertEqual(len(result), 2)
 
     def test_raw_html(self):
