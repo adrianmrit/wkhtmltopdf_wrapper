@@ -1,7 +1,7 @@
 import threading
 from unittest import TestCase
 
-from wkhtmltopdf_wrapper import to_pdf
+from wkhtmltopdf_wrapper import from_string, from_url
 
 
 class TestToPDF(TestCase):
@@ -9,8 +9,8 @@ class TestToPDF(TestCase):
         """
         Ensures to_pdf can be called multiple times
         """
-        pdf_1 = to_pdf("https://google.com", None, None)
-        pdf_2 = to_pdf("https://google.com", None, None)
+        pdf_1 = from_url("https://google.com", None, None)
+        pdf_2 = from_url("https://google.com", None, None)
 
         self.assertIsNotNone(pdf_1)
         self.assertIsNotNone(pdf_2)
@@ -22,10 +22,10 @@ class TestToPDF(TestCase):
         result = []
 
         def func1():
-            result.append(to_pdf("https://google.com", None, None))
+            result.append(from_url("https://google.com", None, None))
 
         def func2():
-            result.append(to_pdf("https://google.com", None, None))
+            result.append(from_url("https://google.com", None, None))
 
         thread1 = threading.Thread(target=func1)
         thread2 = threading.Thread(target=func2)
@@ -47,6 +47,6 @@ class TestToPDF(TestCase):
             </body>
         </html>
         """
-        pdf = to_pdf(data, None, None)
+        pdf = from_string(data, None, None)
 
         self.assertIsNotNone(pdf)

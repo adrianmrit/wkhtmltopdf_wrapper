@@ -173,17 +173,18 @@ cdef class _PDF:
         self.clean()
 
 
-def _pdf_process(page, settings, output, q: SimpleQueue):
-    if page.startswith(b"http"):
-        q.put(_PDF().from_url(page, settings, output))
-    else:
-        q.put(_PDF().from_string(page, settings, output))
+def _from_url_process(page, settings, output, q):
+    q.put(_PDF().from_url(page, settings, output))
 
-def to_pdf(page: Union[str, bytes], settings: dict = None, output: str=None):
+def _from_string_process(data, settings, output, q: SimpleQueue):
+    q.put(_PDF().from_string(data, settings, output))
+
+
+def _to_pdf(data: Union[str, bytes], settings: dict, output: str, process_method):
     # TODO: Add docstring
     q = SimpleQueue()
-    if isinstance(page, str):
-        page = <unicode> page.encode("utf-8")
+    if isinstance(data, str):
+        data = <unicode> data.encode("utf-8")
 
         if isinstance(output, str):
             output = <unicode> output.encode("utf-8")
@@ -197,10 +198,15 @@ def to_pdf(page: Union[str, bytes], settings: dict = None, output: str=None):
             settings = {}
 
         # We run the PDF generation in a subprocess so it is thread safe
-        process = Process(target=_pdf_process, args=(page, settings, output, q))
+        process = Process(target=process_method, args=(data, settings, output, q))
         process.start()
         result = q.get()
         process.join()
         return result
 
+def from_url(page: Union[str, bytes], settings: dict = None, output: str=None):
+    return _to_pdf(page, settings, output, _from_url_process)
+
+def from_string(data: Union[str, bytes], settings: dict = None, output: str=None):
+    return _to_pdf(data, settings, output, _from_string_process)
 
