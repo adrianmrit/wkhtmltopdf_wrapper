@@ -204,6 +204,7 @@ def _to_pdf(data: Union[str, bytes], settings: dict, output: str, process_method
         process.join()
         return result
 
+# TODO: Infer global and object settings, or pass them separately
 def from_url(page: Union[str, bytes], settings: dict = None, output: str=None):
     return _to_pdf(page, settings, output, _from_url_process)
 
