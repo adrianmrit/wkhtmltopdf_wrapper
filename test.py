@@ -9,7 +9,6 @@ class TestToPDF(TestCase):
         """
         Ensures to_pdf can be called multiple times
         """
-        # TODO: Test with HTML page
         pdf_1 = to_pdf("https://google.com", None, None)
         pdf_2 = to_pdf("https://google.com", None, None)
 
@@ -35,3 +34,17 @@ class TestToPDF(TestCase):
         thread1.join(3)
         thread2.join(3)
         self.assertEqual(len(result), 2)
+
+    def test_raw_html(self):
+        data = """
+        <!DOCTYPE html>
+        <html>
+            <body>
+            <h1>Sample PDF</h1>
+            <p>Sample content</p>
+            </body>
+        </html>
+        """
+        pdf = to_pdf(data, None, None)
+
+        self.assertIsNotNone(pdf)

@@ -82,61 +82,109 @@ cdef void _warning_callback(wkhtmltopdf_converter * c, const char * msg):
 
 cdef class _PDF:
     """Wraps the c library"""
-    # TODO: Improve code by separating into specialized methods
-    # TODO: Improve speed by removing unnecessary python calls
-    def to_pdf(self, page, settings: dict, output=None):
-        cdef wkhtmltopdf_converter *converter
-        cdef wkhtmltopdf_object_settings *object_settings
-        cdef unsigned char *pdf = NULL
-        cdef unsigned char *pdf_copy = NULL
-        cdef unsigned char *pos = pdf
-        cdef char *c_output = NULL
+    cdef wkhtmltopdf_converter *converter
+    cdef wkhtmltopdf_global_settings *global_settings
+    cdef wkhtmltopdf_object_settings *object_settings
 
+
+    def __cinit__(self, global_settings=None, object_settings=None):
         wkhtmltopdf_init(1)
-        global_settings = wkhtmltopdf_create_global_settings()
+        self.global_settings = wkhtmltopdf_create_global_settings()
+        self.object_settings = wkhtmltopdf_create_object_settings()
+
+        if global_settings:
+            self.set_global_settings(global_settings)
+        if object_settings:
+            self.set_object_settings(object_settings)
+
+        self.converter = wkhtmltopdf_create_converter(self.global_settings)
+
+        wkhtmltopdf_set_error_callback(self.converter, _error_callback)
+        wkhtmltopdf_set_warning_callback(self.converter, _warning_callback)
+
+    def set_global_setting(self, key, val):
+        if isinstance(key, str):
+            key = <unicode> key.encode("utf-8")
+        if isinstance(val, str):
+            val = <unicode> val.encode("utf-8")
+
+        wkhtmltopdf_set_global_setting(self.global_settings, key, val)
+
+    def set_object_setting(self, key, val):
+        if isinstance(key, str):
+            key = <unicode> key.encode("utf-8")
+        if isinstance(val, str):
+            val = <unicode> val.encode("utf-8")
+
+        wkhtmltopdf_set_object_setting(self.object_settings, key, val)
+
+    def set_global_settings(self, settings: dict):
+        for k, v in settings.items():
+            self.set_global_setting(k, v)
+
+    def set_object_settings(self, settings: dict):
+        for k, v in settings.items():
+            self.set_object_setting(k, v)
+
+    def clean(self):
+        # TODO: free pdf pointer
+        wkhtmltopdf_destroy_converter(self.converter)
+        wkhtmltopdf_destroy_object_settings(self.object_settings)
+        wkhtmltopdf_destroy_global_settings(self.global_settings)
+        wkhtmltopdf_deinit()
+
+    def from_url(self, page, settings: dict, output=None):
+        cdef unsigned char *pdf = NULL
 
         if output is not None:
-            c_output = output
-        wkhtmltopdf_set_global_setting(global_settings, 'out', c_output)
+            self.set_global_setting('out', output)
 
-        converter = wkhtmltopdf_create_converter(global_settings)
-        object_settings = wkhtmltopdf_create_object_settings()
-
-        wkhtmltopdf_set_object_setting(object_settings, 'page', page)
-        for k, v in settings.keys():
-            wkhtmltopdf_set_object_setting(object_settings, k, v)
-
-        # We set callbacks
-        # wkhtmltopdf_set_progress_changed_callback(converter, progress_changed)
-        # wkhtmltopdf_set_phase_changed_callback(converter, phase_changed)
-        wkhtmltopdf_set_error_callback(converter, _error_callback)
-        wkhtmltopdf_set_warning_callback(converter, _warning_callback)
-
+        self.set_object_setting('page', page)
+        wkhtmltopdf_add_object(self.converter, self.object_settings, NULL)
         try:
-            wkhtmltopdf_add_object(converter, object_settings, NULL)
-
-            if not wkhtmltopdf_convert(converter):
+            if not wkhtmltopdf_convert(self.converter):
                 raise WkhtmltopdfError("There was an error converting to PDF")
 
             # wkhtmltopdf_http_error_code(converter)
             if output is None:
-                length = wkhtmltopdf_get_output(converter, &pdf)
+                length = wkhtmltopdf_get_output(self.converter, &pdf)
 
                 # Does the appropriate conversion to bytes and returns a bytes string of the right length
                 # by ignoring null characters
                 return pdf[:length]
         finally:
-            # TODO: free pdf pointer
-            wkhtmltopdf_destroy_converter(converter)
-            wkhtmltopdf_destroy_object_settings(object_settings)
-            wkhtmltopdf_destroy_global_settings(global_settings)
-            wkhtmltopdf_deinit()
+            self.clean()
+        return None
+
+    def from_string(self, data, settings: dict, output=None):
+        cdef unsigned char *pdf = NULL
+
+        if output is not None:
+            self.set_global_setting('out', output)
+
+        wkhtmltopdf_add_object(self.converter, self.object_settings, data)
+        try:
+            if not wkhtmltopdf_convert(self.converter):
+                raise WkhtmltopdfError("There was an error converting to PDF")
+
+            # wkhtmltopdf_http_error_code(converter)
+            if output is None:
+                length = wkhtmltopdf_get_output(self.converter, &pdf)
+
+                # Does the appropriate conversion to bytes and returns a bytes string of the right length
+                # by ignoring null characters
+                return pdf[:length]
+        finally:
+            self.clean()
         return None
 
 
 def _pdf_process(page, settings, output, q: Queue):
-    q.put(_PDF().to_pdf(page, settings, output))
-
+    if page.startswith(b"http"):
+        q.put(_PDF().from_url(page, settings, output))
+    else:
+        # page = b"data:text/html," + page
+        q.put(_PDF().from_string(page, settings, output))
 
 def to_pdf(page: Union[str, bytes], settings: dict = None, output: str=None):
     # TODO: Add docstring
