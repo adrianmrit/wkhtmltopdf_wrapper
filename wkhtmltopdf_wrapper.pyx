@@ -1,7 +1,6 @@
 # cython: language_level=3, c_string_type=bytes
-
 import logging
-from multiprocessing import Queue, Process
+from multiprocessing import SimpleQueue, Process
 from typing import Union
 
 cdef extern from "pdf.h":
@@ -141,20 +140,16 @@ cdef class _PDF:
 
         self.set_object_setting('page', page)
         wkhtmltopdf_add_object(self.converter, self.object_settings, NULL)
-        try:
-            if not wkhtmltopdf_convert(self.converter):
-                raise WkhtmltopdfError("There was an error converting to PDF")
+        if not wkhtmltopdf_convert(self.converter):
+            raise WkhtmltopdfError("There was an error converting to PDF")
 
-            # wkhtmltopdf_http_error_code(converter)
-            if output is None:
-                length = wkhtmltopdf_get_output(self.converter, &pdf)
+        # wkhtmltopdf_http_error_code(converter)
+        if output is None:
+            length = wkhtmltopdf_get_output(self.converter, &pdf)
 
-                # Does the appropriate conversion to bytes and returns a bytes string of the right length
-                # by ignoring null characters
-                return pdf[:length]
-        finally:
-            self.clean()
-        return None
+            # Does the appropriate conversion to bytes and returns a bytes string of the right length
+            # by ignoring null characters
+            return pdf[:length]
 
     def from_string(self, data, settings: dict, output=None):
         cdef unsigned char *pdf = NULL
@@ -163,32 +158,30 @@ cdef class _PDF:
             self.set_global_setting('out', output)
 
         wkhtmltopdf_add_object(self.converter, self.object_settings, data)
-        try:
-            if not wkhtmltopdf_convert(self.converter):
-                raise WkhtmltopdfError("There was an error converting to PDF")
+        if not wkhtmltopdf_convert(self.converter):
+            raise WkhtmltopdfError("There was an error converting to PDF")
 
             # wkhtmltopdf_http_error_code(converter)
-            if output is None:
-                length = wkhtmltopdf_get_output(self.converter, &pdf)
+        if output is None:
+            length = wkhtmltopdf_get_output(self.converter, &pdf)
 
-                # Does the appropriate conversion to bytes and returns a bytes string of the right length
-                # by ignoring null characters
-                return pdf[:length]
-        finally:
-            self.clean()
-        return None
+            # Does the appropriate conversion to bytes and returns a bytes string of the right length
+            # by ignoring null characters
+            return pdf[:length]
+
+    def __dealloc__(self):
+        self.clean()
 
 
-def _pdf_process(page, settings, output, q: Queue):
+def _pdf_process(page, settings, output, q: SimpleQueue):
     if page.startswith(b"http"):
         q.put(_PDF().from_url(page, settings, output))
     else:
-        # page = b"data:text/html," + page
         q.put(_PDF().from_string(page, settings, output))
 
 def to_pdf(page: Union[str, bytes], settings: dict = None, output: str=None):
     # TODO: Add docstring
-    q = Queue()
+    q = SimpleQueue()
     if isinstance(page, str):
         page = <unicode> page.encode("utf-8")
 
